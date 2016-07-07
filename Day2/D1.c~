@@ -1,38 +1,50 @@
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <stdlib.h>
 
+#define THREADS 5
+typedef struct t_struct{
+	int ID,i,dcount;
+	char name[11];
+}thread_struct;
+void *func(void* arg){
+	thread_struct* farg=arg;
+	int count=0,i;
+	for(i=0;i<farg->i;i++){
+		printf("NAME:%s  ID:%d  I:%d  COUNT:%d\n",farg->name,farg->ID,i,count);
+		count++;
+		usleep(1);	
+	}
+}
+void random_name(char name[11]){
+	int i;
+	for(i=0;i<10;i++){
+		name[i]=(char)(rand()%25+65);
+	}
+	name[10]='\0';
+}
+void generate_arg(thread_struct* arg,int ID){
+	arg->ID=ID;
+	arg->i=rand()%20;
+	arg->dcount=rand()%10-10;
+	random_name(arg->name);
+}
 int main()
 {
-    pid_t pid;
-    size_t size;
-    char str[11]={'/0'};
-    int fd[2];
-    if (pipe(fd)<0){
-        printf("pipe create error\n");
-        exit(-1);
-    }
-    pid=fork();
-    if (pid<0){
-        printf("fork child error\n");
-    }
-    if (pid==0){
-        close(fd[0]);
-        scanf("%s",str);
-        size=write(fd[1],str,10);
-        if (size<0){
-            printf("write error\n");
-            exit(-1);
-        }
-    }
-    else{
-        close(fd[1]);
-        size=read(fd[0],str,10);
-        if (size<0){
-            printf("read error\n");
-            exit(-1);
-        }
-        printf("%s\n",str);
-    }
-    return 0;
+	pthread_t threads[THREADS];
+	thread_struct arg[THREADS];
+	int rc,i;
+	for(i=0;i<THREADS;i++){
+		generate_arg(&arg[i],i);
+		rc = pthread_create(&threads[i], NULL, func, &arg[i]);
+ 		if (rc) {
+ 			printf("ERROR\n");
+			 exit(-1);
+ 		}
+	}
+	for(i = 0; i < THREADS; i++) {
+		pthread_join(threads[i], NULL);
+ 	}
+	return 0;
 }
