@@ -1,5 +1,0 @@
-
-D1:
-	gcc -o Day1/D1 Day1/D1.c
-D2:
-	gcc -o Day1/D2 Day1/D2.c
