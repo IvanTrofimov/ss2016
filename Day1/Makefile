@@ -1,5 +1,5 @@
 all: D1 D2
 D1:
-	gcc -o Day1/D1 Day1/D1.c
+	gcc -o D1 D1.c
 D2:
-	gcc -o Day1/D2 Day1/D2.c
+	gcc -o D2 D2.c
