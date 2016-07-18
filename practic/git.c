@@ -1,13 +1,6 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include <sys/types.h>
 #include<pthread.h>
+#include"git.h"
 
-typedef struct process_canal{
-	int* flag;
-	char* comand;
-}canal_t;
 int str_len(char* str){
 	int i=0;
 	while ((str[i]!='\0')&&(str[i]!='\n')){
@@ -15,17 +8,19 @@ int str_len(char* str){
 	}
 	return i;
 }
-char* Directoryname(char* gitname){
+char* Directoryname(char* gitname,char*Directory){
 	char* Dirname;
 	int i=0,j;
 	while(gitname[i]!='\0')
 		i++;
 	while(gitname[i-1]!='/')
 		i--;
-	Dirname=malloc(sizeof(char)*(str_len(&gitname[i])));
+	Dirname=malloc(sizeof(char)*(str_len(&gitname[i])+str_len(Directory+1)));
 	for(j=0;j<str_len(&gitname[i]);j++){
 		Dirname[j]=gitname[j+i];
 	}
+	Dirname=strncat(Dirname,"/",1);
+	Dirname=strncat(Dirname,Directory,str_len(Directory));
 	return Dirname;
 }
 char* bash_comand(char flag,char* argname){
@@ -55,53 +50,61 @@ char* bash_comand(char flag,char* argname){
 		comand=strncat(comand,"/Makefile",9);
 		break;
 	}
-	printf("%s\n",comand);
 	return comand;
 }
-void *load(void* arg){
-	canal_t* canal=arg;
-	system(canal->comand);
-	*canal->flag=0;
+void* load_control(void* arg){
+	arg_t* input=arg;
+	sleep(input->time);
+	if(*input->flag!=0){
+		printf("KILL\n");
+		kill(input->pid+1, SIGINT);
+		kill(input->pid, SIGINT);
+	}
 }
-int load_git(char* gitname){
+int load_git(char* gitname,int time){
 	int i,cd=1;
-	pthread_t load_worker;
-	canal_t canal;
-	canal.flag=&cd;
-	canal.comand=bash_comand('g',gitname);
-	pthread_create(&load_worker, NULL, load, &canal);
-	sleep(7);
-	pthread_cancel(load_worker);
+	char* comand;
+	arg_t arg;
+	arg.time=time;
+	arg.flag=&cd;
+	pthread_t control_proces;
+	comand=bash_comand('g',gitname);
+	pthread_create(&control_proces,NULL,load_control,&arg);
+	arg.pid=getpid()+3;
+	cd=system(comand);
+	pthread_join(control_proces,NULL);
 	if(cd)
 		return 1;
 	else
 		return 0;
-	free(canal.comand);
+	free(comand);
 }
-void print_make_result(FILE* fp,char* gitname){
+void print_make_result(FILE* fp,char* gitname,int time,char* Directory){
 	int cd;
 	char* Dirname;
 	char* comand;
-	cd=load_git(gitname);
+	cd=load_git(gitname,time);
 	if (cd){
-		fprintf(fp,"Git clone EROR\n");
+		fprintf(fp,":Git clone ERROR\n");
 		exit(-1);
 	}
-	Dirname=Directoryname(gitname);
+	Dirname=Directoryname(gitname,Directory);
 	comand=bash_comand('m',Dirname);
-	printf("%s\n",comand);
 	cd=system(comand);
 	free(Dirname);
 	if (cd)
-		fprintf(fp,"makefile -\n");
+		fprintf(fp,":makefile ERROR. Error N%d\n",cd);
 	else
-		fprintf(fp,"makefile +\n");
+		fprintf(fp,":makefile is working properly\n");
 	free(comand);
 }
-int main(){
-	//printf("result=%d\n",load_git("https://github.com/IvanTrofimov/ss2016"));
-	FILE* fp=fopen("otchet","w");
-	print_make_result(fp,"https://github.com/IvanTrofimov/ss216");
-	fclose(fp);
-	return 0;
+int str_to_int(char* str){
+	int i=0,value=0;
+	while (str[i]!='\0'){
+		value+=(int)str[i]-48;
+		i++;
+		value*=10;
+	}
+	value/=10;
+	return value;
 }

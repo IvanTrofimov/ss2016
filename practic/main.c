@@ -1,100 +1,54 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include <sys/types.h>
-#include<pthread.h>
+#include "filework.h"
+#include "git.h"
+#include <unistd.h>
 
-typedef struct process_canal{
-	int* flag;
-	char* comand;
-}canal_t;
-int str_len(char* str){
-	int i=0;
-	while ((str[i]!='\0')&&(str[i]!='\n')){
-		i++;
+int main(int argc, char *argv[])
+{
+	char path[30], pathnew[30];
+	FILE *fp;
+	getcwd(path, 30);
+	int count, i, check = 0;
+	if (argc == 1)
+	{
+		printf("You didn't enter the path to a list of students, try again\n");
+		exit(1);
 	}
-	return i;
-}
-char* Directoryname(char* gitname){
-	char* Dirname;
-	int i=0,j;
-	while(gitname[i]!='\0')
-		i++;
-	while(gitname[i-1]!='/')
-		i--;
-	Dirname=malloc(sizeof(char)*(str_len(&gitname[i])));
-	for(j=0;j<str_len(&gitname[i]);j++){
-		Dirname[j]=gitname[j+i];
+	char *way = argv[1];
+	int timeout;
+	if (argc == 3) timeout = str_to_int(argv[2]);
+	else timeout = 20;
+	struct for_in str1;
+	str1.list = fopen(way, "r");	
+	if (str1.list == NULL)
+	{
+		printf("error\n");
+		exit(1);
 	}
-	return Dirname;
-}
-char* bash_comand(char flag,char* argname){
-	char* comand;
-	int i;
-	switch (flag){
-	case('g'):
-		comand=malloc(sizeof(char)*(10+str_len(argname)));
-		strcpy(comand,"git clone ");
-		for(i=0;i<str_len(argname);i++){
-			comand[10+i]=argname[i];
+	FILE *new_f = fopen("statistic.txt", "w");
+	if (new_f == NULL)
+	{
+		printf("error\n");
+		exit(1);
+	}
+	while (check == 0)
+	{
+		str1.f_name[0] = '\0';
+		str1.m_name[0] = '\0';
+		str1.l_name[0] = '\0';
+		str1.group[0] = '\0';
+		str1.github[0] = '\0';
+		str1.git_folder[0] = '\0';
+		check = GetGit(&str1);
+		if (check == 0)
+		{
+			fprintf(new_f, "%s:   %s %s %s   ", str1.group, str1.f_name, str1.m_name, str1.l_name);
+			GroupDir(str1.group, path);
+			print_make_result(new_f, str1.github,timeout,str1.git_folder);
+			fprintf(new_f, "\n");
+			chdir(path);
 		}
-		break;
-	case('c'):
-		comand=malloc(sizeof(char)*(4+str_len(argname)));
-		strcpy(comand,"cd ");
-		for(i=0;i<str_len(argname);i++){
-			comand[3+i]=argname[i];
-		}
-		break;
-	case('m'):
-		comand=malloc(sizeof(char)*(18+str_len(argname)));
-		strcpy(comand,"make -f ");
-		for(i=0;i<str_len(argname);i++){
-			comand[8+i]=argname[i];
-		}
-		comand=strncat(comand,"/Makefile",9);
-		break;
 	}
-	printf("%s\n",comand);
-	return comand;
-}
-void *load(void* arg){
-	canal_t* canal=arg;
-	system(canal->comand);
-	*canal->flag=0;
-}
-int load_git(char* gitname){
-	int i,cd=1;
-	pthread_t load_worker;
-	canal_t canal;
-	canal.flag=&cd;
-	canal.comand=bash_comand('g',gitname);
-	pthread_create(&load_worker, NULL, load, &canal);
-	sleep(7);
-	pthread_cancel(load_worker);
-	if(cd)
-		return 1;
-	else
-		return 0;
-	free(canal.comand);
-}
-void print_make_result(FILE* fp,char* gitname){
-	int cd;
-	char* Dirname;
-	char* comand;
-	cd=load_git(gitname);
-	if (cd){
-		fprintf(fp,"Git clone EROR\n");
-		exit(-1);
-	}
-	Dirname=Directoryname(gitname);
-	comand=bash_comand('m',Dirname);
-	printf("%s\n",comand);
-	cd=system(comand);
-	free(Dirname);
-	if (cd)
-		fprintf(fp,"makefile -\n");
-	else
-		fprintf(fp,"makefile +\n");
-	free(comand);
+	fclose(new_f);
+	fclose(str1.list);
+	return 0;
 }
