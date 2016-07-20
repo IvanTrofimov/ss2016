@@ -1,1 +1,3 @@
-Trofimov Ivan Alexandrovich; 30-121b; https://github.com/IvanTrofimov/ss2016; Day1
+Ivanov Ivan Ivanovich; 30-112b; https://github.com/IvanTrofimov/ss2016;Day1
+Ivanov Ivan Ivanovich; 30-122b; https://github.com/IvanTrofimov/ss2016;Day2
+Ivanov Ivan Ivanovich; 30-122b; https://github.com/IvanTrofimov/ss2016;

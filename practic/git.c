@@ -8,20 +8,27 @@ int str_len(char* str){
 	}
 	return i;
 }
-char* Directoryname(char* gitname,char*Directory){
-	char* Dirname;
+char* directory_name(char* gitname,char*directory){
+	char* dirname;
 	int i=0,j;
 	while(gitname[i]!='\0')
 		i++;
 	while(gitname[i-1]!='/')
 		i--;
-	Dirname=malloc(sizeof(char)*(str_len(&gitname[i])+str_len(Directory+1)));
+	dirname=malloc(sizeof(char)*(str_len(&gitname[i])+str_len(directory)+2));
 	for(j=0;j<str_len(&gitname[i]);j++){
-		Dirname[j]=gitname[j+i];
+		dirname[j]=gitname[j+i];
+		dirname[j+1]='\0';
 	}
-	Dirname=strncat(Dirname,"/",1);
-	Dirname=strncat(Dirname,Directory,str_len(Directory));
-	return Dirname;
+	if(str_len(directory)!=0){
+		i=str_len(&gitname[i]);
+		dirname[i]='/';
+		i++;
+		for(j=0;j<str_len(directory);j++){
+			dirname[i+j]=directory[j];
+		}
+	}
+	return dirname;
 }
 char* bash_comand(char flag,char* argname){
 	char* comand;
@@ -46,57 +53,53 @@ char* bash_comand(char flag,char* argname){
 		strcpy(comand,"make -f ");
 		for(i=0;i<str_len(argname);i++){
 			comand[8+i]=argname[i];
+			comand[9+i]='\0';
 		}
 		comand=strncat(comand,"/Makefile",9);
 		break;
 	}
 	return comand;
 }
-void* load_control(void* arg){
-	arg_t* input=arg;
-	sleep(input->time);
-	if(*input->flag!=0){
-		printf("KILL\n");
-		kill(input->pid+1, SIGINT);
-		kill(input->pid, SIGINT);
+
+int load_git(char* gitname,int time){
+	pid_t pid=fork();
+	int cd;
+	if(pid<0){
+		printf("fork error\n");
+		return 1;
+	}
+	else if(pid==0){
+		execl("/usr/bin/git","git","clone",gitname,NULL);
+	}
+	else{
+		sleep(time);
+		kill(pid,SIGINT);
+		cd=kill(pid+1,SIGINT);
+		if (cd==-1) return 0;
+		else return 1;
 	}
 }
-int load_git(char* gitname,int time){
-	int i,cd=1;
-	char* comand;
-	arg_t arg;
-	arg.time=time;
-	arg.flag=&cd;
-	pthread_t control_proces;
-	comand=bash_comand('g',gitname);
-	pthread_create(&control_proces,NULL,load_control,&arg);
-	arg.pid=getpid()+3;
-	cd=system(comand);
-	pthread_join(control_proces,NULL);
-	if(cd)
-		return 1;
-	else
-		return 0;
-	free(comand);
-}
-void print_make_result(FILE* fp,char* gitname,int time,char* Directory){
+void print_make_result(FILE* fp,char* gitname,int time,char* directory){
 	int cd;
-	char* Dirname;
+	char* dirname;
 	char* comand;
 	cd=load_git(gitname,time);
-	if (cd){
-		fprintf(fp,":Git clone ERROR\n");
-		exit(-1);
-	}
-	Dirname=Directoryname(gitname,Directory);
-	comand=bash_comand('m',Dirname);
+	if(cd)fprintf(fp," git not found");
+	else fprintf(fp," git successfully loaded");
+	dirname=directory_name(gitname,directory);
+	comand=bash_comand('m',dirname);
 	cd=system(comand);
-	free(Dirname);
 	if (cd)
-		fprintf(fp,":makefile ERROR. Error N%d\n",cd);
+		fprintf(fp,"; makefile ERROR. Error N%d\n",cd);
 	else
-		fprintf(fp,":makefile is working properly\n");
-	free(comand);
+		fprintf(fp,"; makefile is working properly\n");
+	str_free(dirname);
+	str_free(comand);
+}
+void str_free(char* str){
+	int i;
+	for(i=0;i<str_len(str);i++) str[i]='\0';
+	free(str);
 }
 int str_to_int(char* str){
 	int i=0,value=0;
